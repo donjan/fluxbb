@@ -2046,3 +2046,104 @@ function dump()
 	echo '</pre>';
 	exit;
 }
+
+
+
+//
+// Hook system [start]
+//
+
+// Provides a hook at the calling position
+function hook($hookname) {
+
+  $hook = PUN_ROOT . 'hooks/' . $hookname;
+
+  if(!file_exists($hook))
+    die("Fatal Error: hook directory <i>hooks/$hookname</i> doesn't exist!");
+
+  $includes = array();
+  $d = opendir($hook);
+
+  while (false !== ($plugin = readdir($d))) {
+
+		if ($plugin[0] == '.')
+			continue;
+
+    if(file_exists(PUN_ROOT . 'plugins/' . $plugin . '/' . $hookname . '.php'))
+      $includes[] = $plugin;
+    else
+      echo "Warning: Ignoring plugin <i>$plugin</i> (hooks into <i>$hookname</i> but doesn't provide an implementation)!";
+
+  }
+
+  closedir($d);
+
+  if(count($includes) > 0) {
+
+    global $hook_fail_data;    // holding error data if a plugin fails
+    $hook_fail_data[0] = $hookname;
+    foreach($includes as $plugin) {
+
+      $hook_fail_data[1] = $plugin;
+      @include PUN_ROOT . 'plugins/' . $plugin . '/' . $hookname . '.php';
+
+    }
+    $hook_fail_data[0] = false;
+    $hook_fail_data[1] = false;
+
+  }
+
+}
+
+// Prints an error message and and debug info if there are fatal plugin errors
+$hook_fail_data = array(false,false);  // global variable
+register_shutdown_function('hook_fail', &$hook_fail_data);
+function hook_fail(&$r) {
+
+  $hook = $r[0];
+  $plugin = $r[1];
+  if($hook != false) {
+
+    if($plugin == false) $plugin = "[unkown plugin]";
+    echo "<html><head></head><body><p style='color:#d00'>"
+        ."Fatal Error: plugin <i>$plugin</i> had an error at hook <i>$hook</i>!<br />"
+        ."Deleting the file <i>hooks/$hook/$plugin</i> should resolve this."
+        ."</p>";
+
+    // dump all hooks of this pugin
+    $hooks = array();
+    $d = opendir(PUN_ROOT.'hooks');
+    while (false !== ($hookname = readdir($d))) {
+      if(file_exists(PUN_ROOT.'hooks/'.$hookname.'/'.$plugin && $hook != $hookname))
+        $hooks[] = $hookname;
+    }
+    closedir($d);
+    if(count($hooks) > 0) {
+      echo "<p>In order to cleanly deactivate this plugin, you should also remove the following files:</p>";
+      foreach($hooks as $hookname)
+        echo "<i>hooks/$hookname/$plugin</i><br />";
+    }
+
+    // dump all plugins in the problematic hook folder
+    $d = opendir(PUN_ROOT.'hooks/'.$hook);
+    $plugins = array();
+    while (false !== ($pluginname = readdir($d))) {
+      if($pluginname != $plugin)
+        $plugins[] = $pluginname;
+    }
+    closedir($d);
+    if(count($plugins) > 0) {
+      echo "<p>The following plugins could potentially be in conflict with <i>$plugin</i>:</p>";
+      foreach($plugins as $pluginname);
+        echo "<i>hooks/$hook/$pluginname</i><br />";
+    }
+
+    echo "</body></html>";
+
+  }
+
+}
+
+//
+// Hook system [end]
+//
