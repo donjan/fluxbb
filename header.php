@@ -159,6 +159,7 @@ if (isset($focus_element))
 }
 // END SUBST - <body>
 
+hook('first_in_body');
 
 // START SUBST - <pun_page>
 $tpl_main = str_replace('<pun_page>', htmlspecialchars(basename($_SERVER['PHP_SELF'], '.php')), $tpl_main);
