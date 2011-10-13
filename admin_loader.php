@@ -19,7 +19,10 @@ if (!$pun_user['is_admmod'])
 
 // The plugin to load should be supplied via GET
 $plugin = isset($_GET['plugin']) ? $_GET['plugin'] : '';
-if (!preg_match('%^AM?P_(\w*?)\.php$%i', $plugin))
+$hook_plugin_name = dirname($plugin);                       // MODIFIED
+//if (!preg_match('%^AM?P_(\w*?)\.php$%i', $plugin))        // MODIFIED
+if (!preg_match('%^AM?P_(\w*?)\.php$%i', $plugin) &&        // MODIFIED
+    !preg_match('%^AM?P_(\w*?)/index\.php$%i', $plugin))    // MODIFIED
 	message($lang_common['Bad request']);
 
 // AP_ == Admins only, AMP_ == admins and moderators

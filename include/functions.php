@@ -1742,6 +1742,10 @@ function forum_list_plugins($is_admin)
 
 		if ($suffix == '.php' && ((!$is_admin && $prefix == 'AMP') || ($is_admin && ($prefix == 'AP' || $prefix == 'AMP'))))
 			$plugins[$entry] = substr($entry, strpos($entry, '_') + 1, -4);
+
+		if (is_dir(PUN_ROOT.'plugins/'.$entry) && file_exists(PUN_ROOT.'plugins/'.$entry.'/index.php'))    // MODIFIED
+			if ((!$is_admin && $prefix == 'AMP') || ($is_admin && ($prefix == 'AP' || $prefix == 'AMP')))    // MODIFIED
+				$plugins[$entry.'/index.php'] = substr($entry, strpos($entry, '_') + 1);                       // MODIFIED
 	}
 	$d->close();
 
@@ -2142,6 +2146,90 @@ function hook_fail(&$r) {
 
   }
 
+}
+
+// The following functions are to be used by the plugin configuration interface
+
+// Returns true if the hooks exist and are writable, false otherwise
+function check_hooks($hooks) {
+  $check = true;
+  foreach($hooks as $hook) {
+    if(!file_exists(PUN_ROOT.'hooks/'.$hook)) {
+
+      echo "Warning: trying to hook into <i>$hook</i> which doesn't exist!";
+      $check = false;
+
+    } else if(!is_writable(PUN_ROOT.'hooks/'.$hook)) {
+
+      echo "Warning: directory <i>hooks/$hook</i> is not writable.<br />";
+      $check = false;
+
+    }
+  }
+
+  if($check == false)
+    echo "You will not be able to activate or deactivate this plugin.<br />"
+        ."Please make sure the hook directories exist and are chmodded to 777.<br />";
+
+  return $check;
+}
+// Tries to activate the hooks and returns true on success, false otherwise
+function activate_hooks($hooks) {
+  global $hook_plugin_name;
+  foreach($hooks as $hook)
+    if(!touch(PUN_ROOT.'hooks/'.$hook.'/'.$hook_plugin_name))
+      return false;
+  return true;
+}
+// Tries to deactivate the hooks and returns true on success, false otherwise
+function deactivate_hooks($hooks) {
+  global $hook_plugin_name;
+  foreach($hooks as $hook)
+    if(!unlink(PUN_ROOT.'hooks/'.$hook.'/'.$hook_plugin_name))
+      return false;
+  return true;
+}
+// Returns those hooks that are currently activated by the plugin (out of the provided hooks array)
+function hooked_hooks($hooks) {
+  global $hook_plugin_name;
+  $active = array();
+  foreach($hooks as $hook)
+    if(file_exists(PUN_ROOT.'hooks/'.$hook.'/'.$hook_plugin_name))
+      $active[] = $hook;
+  return $active;
+}
+
+// The following are wrappers to simplify the usage of the above functions
+
+// Handles the REQUESTs, returns true on success, false otherwise
+function hook_handler($hooks) {
+  if(!check_hooks($hooks)) return false;
+
+  if($_POST['hooks'] == 'Activate' && activate_hooks($hooks))
+    echo '<p>Plugin activated</p>';
+
+  else if($_POST['hooks'] == 'Deactivate' && deactivate_hooks($hooks))
+    echo '<p>Plugin deactivated</p> ';
+
+  if(isset($_POST['hooks'])) {
+    echo '<p><a href="'.$_SERVER['REQUEST_URI'].'">back</a></p>';
+    return false;
+  }
+
+  return true;
+}
+// Provides an activate/deactivate button
+// Will show "Deactivate" if any of the provided hooks is active for the plugin
+function hook_button($hooks) {
+
+  $active = hooked_hooks($hooks);
+  $button = (count($active) > 0) ? ('Deactivate') : ('Activate');
+
+  echo '
+    <form id="hook_button" method="post" action="'. $_SERVER['REQUEST_URI'] .'">
+      <input type="submit" name="hooks" value="'. $button .'" />
+    </form>
+  ';
 }
 
 //
